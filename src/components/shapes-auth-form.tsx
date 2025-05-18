@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
-// Removed useSearchParams, useRouter, usePathname as they are no longer needed for auto code pickup
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { LogIn, KeyRound, AlertTriangle, Smartphone, Cookie, History, SendHorizo
 
 const DEFAULT_APP_ID = "f6263f80-2242-428d-acd4-10e1feec44ee";
 const API_BASE_URL = "https://api.shapes.inc/v1";
-const AUTH_BASE_URL = "https://api.shapes.inc/auth";
+// AUTH_BASE_URL is now used by the /api/auth/token route
 const SITE_BASE_URL = "https://shapes.inc";
 const DEFAULT_MODEL = "shapesinc/shaperobot";
 
@@ -37,15 +36,11 @@ export default function ShapesAuthForm() {
     }
   }, []);
 
-  // Removed useEffect for automatic code pickup from URL as per new manual flow
-
   const handleLoginClick = () => {
     setError(null);
-    // Construct the authorization URL without a redirect_uri
     const authorizeUrl = `${SITE_BASE_URL}/authorize?app_id=${appId}`;
-    // Open the authorization URL in a new window/tab
     window.open(authorizeUrl, '_blank', 'noopener,noreferrer');
-    setAuthStep('awaitingCode'); // Set the original page to await code input
+    setAuthStep('awaitingCode');
     toast({
         title: "New Window Opened",
         description: "Please login/authorize in the new window. Then, copy the one-time code and paste it here.",
@@ -57,12 +52,14 @@ export default function ShapesAuthForm() {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/nonce`, {
+      // Call our new API route
+      const response = await fetch('/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app_id: appId, code: oneTimeCode }),
+        body: JSON.stringify({ appId, oneTimeCode }),
       });
       const data = await response.json();
+
       if (response.ok && data.auth_token) {
         setAuthToken(data.auth_token);
         setAuthStep('tokenReady');
@@ -288,6 +285,3 @@ export default function ShapesAuthForm() {
     </Card>
   );
 }
-    
-
-    
