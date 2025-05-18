@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+// Removed useSearchParams, useRouter, usePathname as they are no longer needed for auto code pickup
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,10 +30,6 @@ export default function ShapesAuthForm() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
   useEffect(() => {
     const envAppId = process.env.NEXT_PUBLIC_SHAPESINC_APP_ID;
     if (envAppId) {
@@ -41,32 +37,18 @@ export default function ShapesAuthForm() {
     }
   }, []);
 
-  useEffect(() => {
-    const codeFromUrl = searchParams.get('code');
-    if (codeFromUrl && authStep !== 'tokenReady' && !isLoading) {
-      setOneTimeCode(codeFromUrl);
-      setAuthStep('awaitingCode');
-      toast({
-        title: "Code Retrieved",
-        description: "One-time code auto-filled. Please submit.",
-      });
-      // Clean the URL by removing the 'code' query parameter.
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.delete('code');
-      const newUrl = `${pathname}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`;
-      router.replace(newUrl, { scroll: false });
-    }
-  }, [searchParams, authStep, isLoading, router, pathname, toast, setOneTimeCode, setAuthStep]);
+  // Removed useEffect for automatic code pickup from URL as per new manual flow
 
   const handleLoginClick = () => {
     setError(null);
-    const redirectUri = `${window.location.origin}${pathname}`;
-    const authorizeUrl = `${SITE_BASE_URL}/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = authorizeUrl;
-    setAuthStep('awaitingCode');
+    // Construct the authorization URL without a redirect_uri
+    const authorizeUrl = `${SITE_BASE_URL}/authorize?app_id=${appId}`;
+    // Open the authorization URL in a new window/tab
+    window.open(authorizeUrl, '_blank', 'noopener,noreferrer');
+    setAuthStep('awaitingCode'); // Set the original page to await code input
     toast({
-        title: "Redirecting to Shapes Inc.",
-        description: "Please login and authorize. You will be redirected back to complete the process.",
+        title: "New Window Opened",
+        description: "Please login/authorize in the new window. Then, copy the one-time code and paste it here.",
     });
   };
 
@@ -231,7 +213,7 @@ export default function ShapesAuthForm() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                After logging in and authorizing on Shapes Inc., paste the provided code. If you were redirected, the code should be auto-filled.
+                A new window/tab should have opened for Shapes Inc. authorization. Once you've authorized and received a one-time code there, please copy it and paste it into the field above.
               </p>
             </div>
             <Button type="submit" className="w-full transition-transform duration-150 ease-in-out hover:scale-105" disabled={isLoading || !oneTimeCode}>
@@ -306,5 +288,6 @@ export default function ShapesAuthForm() {
     </Card>
   );
 }
+    
 
     
