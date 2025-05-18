@@ -1,6 +1,4 @@
-
 "use client";
-
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,13 +6,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, KeyRound, AlertTriangle, Smartphone, Cookie, History, SendHorizonal, Loader2 } from 'lucide-react';
+import { LogIn, KeyRound, AlertTriangle, Smartphone, Cookie, History, SendHorizonal, Loader2, Copy, Settings } from 'lucide-react'; // Import Settings icon
 
 const DEFAULT_APP_ID = "f6263f80-2242-428d-acd4-10e1feec44ee";
 const API_BASE_URL = "https://api.shapes.inc/v1";
-// AUTH_BASE_URL is now used by the /api/auth/token route
 const SITE_BASE_URL = "https://shapes.inc";
-const DEFAULT_MODEL = "shapesinc/shaperobot";
+const DEFAULT_MODEL_NAME = "shaperobot"; // Use just the model name part here
+const MODEL_PREFIX = "shapesinc/"; // Define the fixed prefix
 
 type AuthStep = 'initial' | 'awaitingCode' | 'tokenReady';
 
@@ -27,6 +25,7 @@ export default function ShapesAuthForm() {
   const [authStep, setAuthStep] = useState<AuthStep>('initial');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelName, setModelName] = useState(DEFAULT_MODEL_NAME); // New state for model name
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,7 +51,6 @@ export default function ShapesAuthForm() {
     setError(null);
     setIsLoading(true);
     try {
-      // Call our new API route
       const response = await fetch('/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,9 +83,18 @@ export default function ShapesAuthForm() {
       toast({ variant: "destructive", title: "Error", description: "Auth token is missing." });
       return;
     }
+    if (!modelName.trim()) { // Add validation for model name
+       setError("Model name cannot be empty.");
+       toast({ variant: "destructive", title: "Error", description: "Please specify a model name." });
+       return;
+    }
+
     setError(null);
     setApiResponse(null);
     setIsLoading(true);
+
+    const fullModelName = `${MODEL_PREFIX}${modelName.trim()}`; // Construct the full model string
+
     try {
       const response = await fetch(`${API_BASE_URL}/chat/completions`, {
         method: 'POST',
@@ -97,7 +104,7 @@ export default function ShapesAuthForm() {
           'X-User-Auth': authToken,
         },
         body: JSON.stringify({
-          model: DEFAULT_MODEL,
+          model: fullModelName, // Use the constructed model name
           messages: [{ role: 'user', content: messageToSend }],
         }),
       });
@@ -152,7 +159,7 @@ export default function ShapesAuthForm() {
       toast({ variant: "destructive", title: "Not Found", description: "No token found in Local Storage or Cookies." });
     }
   };
-  
+
   const resetState = () => {
     setOneTimeCode('');
     setAuthToken(null);
@@ -161,16 +168,33 @@ export default function ShapesAuthForm() {
     setAuthStep('initial');
     setIsLoading(false);
     setError(null);
+    setModelName(DEFAULT_MODEL_NAME); // Reset model name on reset
     localStorage.removeItem('shapesAuthToken');
     document.cookie = 'shapesAuthToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure';
     toast({ title: "State Reset", description: "Application state and stored tokens have been cleared."});
   };
 
+  const handleCopyToken = () => {
+    if (authToken) {
+      navigator.clipboard.writeText(authToken).then(() => {
+        toast({ title: "Copied!", description: "Auth token copied to clipboard." });
+      }).catch(err => {
+        console.error("Failed to copy token: ", err);
+        toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy token to clipboard." });
+      });
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-lg shadow-2xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center">ShapesAuth</CardTitle>
+      <CardHeader className="flex flex-col items-center space-y-4">
+        <img
+          src="https://crd573fr6fjpt2tz.public.blob.vercel-storage.com/shapesinc/src/assets/images/logo_colored-8Ubm0TWeUp4zjIqC7bv0ki8PVxflUa.png"
+          alt="Shapes Inc. Logo"
+          className="w-20 h-auto"
+        />
+        <CardTitle className="text-3xl font-bold text-center">Shapes Inc. Auth</CardTitle>
         <CardDescription className="text-center">Authenticate with Shapes Inc. to use their API.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -228,14 +252,22 @@ export default function ShapesAuthForm() {
             <Alert variant="default" className="bg-primary/10 border-primary/30">
               <AlertTriangle className="h-4 w-4 text-primary" />
               <AlertTitle className="text-primary">Auth Token Acquired</AlertTitle>
-              <AlertDescription className="break-all text-xs font-mono p-2 bg-muted rounded my-2 overflow-x-auto">
-                {authToken}
+              <AlertDescription className="break-all text-xs font-mono p-2 bg-muted rounded my-2 overflow-x-auto flex items-center justify-between">
+                <span className="flex-grow mr-2">{authToken}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyToken}
+                  aria-label="Copy token to clipboard"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
               </AlertDescription>
               <p className="text-xs text-primary/80">
                 <strong>Disclaimer:</strong> For demonstration purposes only. Do not display or store auth tokens like this in a production environment. Securely manage tokens (e.g., server-side or HttpOnly cookies).
               </p>
             </Alert>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Button onClick={() => storeToken('localStorage')} variant="outline" className="w-full" aria-label="Store token in Local Storage">
                 <Smartphone className="mr-2 h-5 w-5" /> Store in Local Storage
@@ -243,6 +275,26 @@ export default function ShapesAuthForm() {
               <Button onClick={() => storeToken('cookie')} variant="outline" className="w-full" aria-label="Store token as Cookie">
                 <Cookie className="mr-2 h-5 w-5" /> Store as Cookie
               </Button>
+            </div>
+
+            {/* Model Input Field */}
+            <div className="space-y-2">
+              <label htmlFor="modelName" className="text-sm font-medium flex items-center">
+                <Settings className="mr-2 h-4 w-4 text-muted-foreground" /> API Model
+              </label>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">{MODEL_PREFIX}</span>
+                <Input
+                  id="modelName"
+                  type="text"
+                  placeholder="e.g., shaperobot"
+                  value={modelName}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setModelName(e.target.value)}
+                  required
+                  className="flex-grow"
+                />
+              </div>
+               <p className="text-xs text-muted-foreground">Enter the model name after "{MODEL_PREFIX}".</p>
             </div>
 
             <form onSubmit={handleSendMessage} className="space-y-4">
@@ -257,7 +309,7 @@ export default function ShapesAuthForm() {
                   rows={3}
                 />
               </div>
-              <Button type="submit" className="w-full transition-transform duration-150 ease-in-out hover:scale-105" disabled={isLoading || !messageToSend}>
+              <Button type="submit" className="w-full transition-transform duration-150 ease-in-out hover:scale-105" disabled={isLoading || !messageToSend || !modelName.trim()}> {/* Disable if modelName is empty */}
                 {isLoading && !apiResponse ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <SendHorizonal className="mr-2 h-5 w-5" />}
                 Send Message
               </Button>
