@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +30,10 @@ export default function ShapesAuthForm() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
     const envAppId = process.env.NEXT_PUBLIC_SHAPESINC_APP_ID;
     if (envAppId) {
@@ -35,17 +41,32 @@ export default function ShapesAuthForm() {
     }
   }, []);
 
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code');
+    if (codeFromUrl && authStep !== 'tokenReady' && !isLoading) {
+      setOneTimeCode(codeFromUrl);
+      setAuthStep('awaitingCode');
+      toast({
+        title: "Code Retrieved",
+        description: "One-time code auto-filled. Please submit.",
+      });
+      // Clean the URL by removing the 'code' query parameter.
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('code');
+      const newUrl = `${pathname}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [searchParams, authStep, isLoading, router, pathname, toast, setOneTimeCode, setAuthStep]);
+
   const handleLoginClick = () => {
     setError(null);
-    const authorizeUrl = `${SITE_BASE_URL}/authorize?app_id=${appId}`;
+    const redirectUri = `${window.location.origin}${pathname}`;
+    const authorizeUrl = `${SITE_BASE_URL}/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     window.location.href = authorizeUrl;
-    // After redirection, user will manually come back and paste the code.
-    // For a real app, you'd handle a callback.
-    // We'll optimistically move to awaitingCode step, assuming user will follow instructions.
     setAuthStep('awaitingCode');
     toast({
         title: "Redirecting to Shapes Inc.",
-        description: "Please login and approve the authorization request. Then, paste the one-time code here.",
+        description: "Please login and authorize. You will be redirected back to complete the process.",
     });
   };
 
@@ -210,7 +231,7 @@ export default function ShapesAuthForm() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                After logging in and authorizing on Shapes Inc., paste the provided code.
+                After logging in and authorizing on Shapes Inc., paste the provided code. If you were redirected, the code should be auto-filled.
               </p>
             </div>
             <Button type="submit" className="w-full transition-transform duration-150 ease-in-out hover:scale-105" disabled={isLoading || !oneTimeCode}>
@@ -285,3 +306,5 @@ export default function ShapesAuthForm() {
     </Card>
   );
 }
+
+    
