@@ -12,3 +12,7 @@
 - Auth Token Display: Display the received user auth token. Provide UI and client-side logic to store in browser local storage or cookies. Disclaimer displayed explaining not to show or store auth tokens in a production environment.
 
 
+
+
+https://github.com/user-attachments/assets/715a449e-2225-4370-ac91-c8a4e864ec33
+
